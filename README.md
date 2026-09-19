@@ -22,29 +22,52 @@ Azure-VM-stopper-IPv4-Manager/
 └── README.md
 ```
 
+---
+
+## Features
+
+- Start an existing Azure Linux VM
+- Deallocate the VM when it is not in use
+- Create a Standard Public IPv4 resource automatically
+- Attach the Public IPv4 resource to the VM NIC
+- Detach the Public IPv4 resource during shutdown
+- Delete the Public IPv4 resource after deallocation
+- Recreate a new Public IPv4 resource on the next start
+- Manage Azure NSG rules for SSH-only or web-ready deployments
+- Optional TigerVNC service verification
+- Optional 9Router service and health verification
+- Keep TigerVNC port `5901` private
+- Keep 9Router port `20128` private
+- Support SSH tunneling for TigerVNC and 9Router
+- Support Nginx/Caddy reverse proxy deployments on ports `80` and `443`
+
+---
+
 ## Variants
 
 ### SSH-only
 
 Only TCP port `22` is exposed publicly.
 
-| Script | Azure VM | TigerVNC | 9Router |
-|---|---:|---:|---:|
-| `01-azure-vm-barebones.sh` | Yes | No | No |
-| `02-azure-vm-tigervnc.sh` | Yes | Yes | No |
-| `03-azure-vm-tigervnc-9router.sh` | Yes | Yes | Yes |
+| Script | Azure VM | TigerVNC | 9Router | Public Ports |
+|---|---:|---:|---:|---|
+| `01-azure-vm-barebones.sh` | Yes | No | No | `22` |
+| `02-azure-vm-tigervnc.sh` | Yes | Yes | No | `22` |
+| `03-azure-vm-tigervnc-9router.sh` | Yes | Yes | Yes | `22` |
 
-TigerVNC and 9Router are accessed through SSH tunnels. Ports `5901` and `20128` are not exposed publicly.
+TigerVNC and 9Router are accessed through SSH tunnels.
+
+Ports `5901` and `20128` are **not exposed publicly**.
 
 ### Web 80/443
 
 TCP ports `22`, `80`, and `443` are exposed publicly.
 
-| Script | Azure VM | TigerVNC | 9Router |
-|---|---:|---:|---:|
-| `01-azure-vm-barebones.sh` | Yes | No | No |
-| `02-azure-vm-tigervnc.sh` | Yes | Yes | No |
-| `03-azure-vm-tigervnc-9router.sh` | Yes | Yes | Yes |
+| Script | Azure VM | TigerVNC | 9Router | Public Ports |
+|---|---:|---:|---:|---|
+| `01-azure-vm-barebones.sh` | Yes | No | No | `22`, `80`, `443` |
+| `02-azure-vm-tigervnc.sh` | Yes | Yes | No | `22`, `80`, `443` |
+| `03-azure-vm-tigervnc-9router.sh` | Yes | Yes | Yes | `22`, `80`, `443` |
 
 Ports `5901` and `20128` remain private.
 
@@ -66,23 +89,48 @@ Nginx / Caddy
 
 ---
 
-## What the Scripts Do
+## Command Pattern
 
-### Start
+All six scripts support the same three actions:
+
+```bash
+./SCRIPT_NAME.sh start
+./SCRIPT_NAME.sh status
+./SCRIPT_NAME.sh stop
+```
+
+### `start`
+
+The script will:
 
 ```text
 Create Standard Public IPv4
         ↓
 Attach Public IPv4 to the VM NIC
         ↓
-Ensure the required NSG rules exist
+Ensure required NSG rules exist
         ↓
 Start the Azure VM
         ↓
 Optionally verify TigerVNC / 9Router
 ```
 
-### Stop
+### `status`
+
+The script will show:
+
+```text
+VM power state
+Public IPv4 information
+Inbound NSG rules
+TigerVNC status (when applicable)
+9Router status (when applicable)
+9Router health check (when applicable)
+```
+
+### `stop`
+
+The script will:
 
 ```text
 Deallocate the Azure VM
@@ -149,11 +197,21 @@ Expected response:
 
 ---
 
-## Install in Azure Cloud Shell
+# Installation in Azure Cloud Shell
 
-### 1. Open Azure Cloud Shell
+## 1. Open Azure Cloud Shell
 
-Open the [Azure Portal](https://portal.azure.com/), launch **Cloud Shell**, and select **Bash**.
+Open the Azure Portal:
+
+```text
+https://portal.azure.com
+```
+
+Launch **Cloud Shell** and select:
+
+```text
+Bash
+```
 
 Check the active subscription:
 
@@ -167,7 +225,9 @@ If necessary, select the correct subscription:
 az account set --subscription "Azure for Students"
 ```
 
-### 2. Clone This Repository
+---
+
+## 2. Clone the Repository
 
 ```bash
 git clone https://github.com/AkbarPutraWiratama/Azure-VM-stopper-IPv4-Manager.git
@@ -179,16 +239,31 @@ Enter the repository:
 cd Azure-VM-stopper-IPv4-Manager
 ```
 
-Make all scripts executable:
+---
+
+## 3. Make All Scripts Executable
 
 ```bash
 chmod +x ssh-only/*.sh
 chmod +x web-80-443/*.sh
 ```
 
+Verify:
+
+```bash
+ls -l ssh-only
+ls -l web-80-443
+```
+
+Executable scripts should show permissions similar to:
+
+```text
+-rwxr-xr-x
+```
+
 ---
 
-## Configuration
+## 4. Configure Azure Resource Names
 
 Every script contains the same Azure configuration block near the top:
 
@@ -205,7 +280,7 @@ ZONE="1"
 SSH_USER="Akbar"
 ```
 
-Change these values to match your own Azure environment.
+Change these values to match your Azure environment.
 
 Useful Azure CLI commands:
 
@@ -225,6 +300,10 @@ az network nsg list -g YOUR_RESOURCE_GROUP -o table
 az network vnet list -g YOUR_RESOURCE_GROUP -o table
 ```
 
+```bash
+az network public-ip list -g YOUR_RESOURCE_GROUP -o table
+```
+
 ---
 
 # SSH-only Versions
@@ -232,7 +311,7 @@ az network vnet list -g YOUR_RESOURCE_GROUP -o table
 Enter the directory:
 
 ```bash
-cd ssh-only
+cd ~/Azure-VM-stopper-IPv4-Manager/ssh-only
 ```
 
 ## 1. Barebones
@@ -243,53 +322,91 @@ This version manages only:
 - Standard Public IPv4 create/attach/detach/delete
 - SSH NSG rule
 
-Start:
+### Start
 
 ```bash
 ./01-azure-vm-barebones.sh start
 ```
 
-Status:
+### Status
 
 ```bash
 ./01-azure-vm-barebones.sh status
 ```
 
-Stop:
+### Stop
 
 ```bash
 ./01-azure-vm-barebones.sh stop
 ```
 
+---
+
 ## 2. TigerVNC
 
-Start:
+This version adds TigerVNC service verification.
+
+TigerVNC port `5901` remains private.
+
+### Start
 
 ```bash
 ./02-azure-vm-tigervnc.sh start
 ```
 
-The script prints a tunnel similar to:
+### Status
+
+```bash
+./02-azure-vm-tigervnc.sh status
+```
+
+### Stop
+
+```bash
+./02-azure-vm-tigervnc.sh stop
+```
+
+The script prints an SSH tunnel similar to:
 
 ```bash
 ssh -L 5901:127.0.0.1:5901 USER@PUBLIC_IP
 ```
 
-Keep the SSH session running and connect TigerVNC Viewer to:
+Keep the SSH session running.
+
+Connect TigerVNC Viewer to:
 
 ```text
 127.0.0.1:5901
 ```
 
+---
+
 ## 3. TigerVNC + 9Router
 
-Start:
+This version verifies both TigerVNC and 9Router.
+
+Ports `5901` and `20128` remain private.
+
+### Start
 
 ```bash
 ./03-azure-vm-tigervnc-9router.sh start
 ```
 
-The script prints a combined tunnel:
+### Status
+
+```bash
+./03-azure-vm-tigervnc-9router.sh status
+```
+
+### Stop
+
+```bash
+./03-azure-vm-tigervnc-9router.sh stop
+```
+
+The script prints a combined SSH tunnel:
 
 ```bash
 ssh \
@@ -304,7 +421,7 @@ TigerVNC:
 127.0.0.1:5901
 ```
 
-9Router:
+9Router Web UI:
 
 ```text
 http://127.0.0.1:20128
@@ -323,18 +440,44 @@ http://127.0.0.1:20128/v1
 Enter the directory:
 
 ```bash
-cd ../web-80-443
+cd ~/Azure-VM-stopper-IPv4-Manager/web-80-443
 ```
 
 ## 1. Barebones
 
-Start:
+This version manages the Azure VM, Public IPv4 lifecycle, and NSG rules for:
+
+```text
+22
+80
+443
+```
+
+It does not manage TigerVNC or 9Router.
+
+### Start
 
 ```bash
 ./01-azure-vm-barebones.sh start
 ```
 
-The script ensures these inbound NSG ports are available:
+### Status
+
+```bash
+./01-azure-vm-barebones.sh status
+```
+
+### Stop
+
+```bash
+./01-azure-vm-barebones.sh stop
+```
+
+---
+
+## 2. TigerVNC
+
+This version exposes:
 
 ```text
 22
@@ -342,25 +485,27 @@ The script ensures these inbound NSG ports are available:
 443
 ```
 
-This variant does not manage TigerVNC or 9Router.
+TigerVNC port `5901` remains private.
 
-## 2. TigerVNC
-
-Start:
+### Start
 
 ```bash
 ./02-azure-vm-tigervnc.sh start
 ```
 
-Public ports:
+### Status
 
-```text
-22
-80
-443
+```bash
+./02-azure-vm-tigervnc.sh status
 ```
 
-TigerVNC remains private and is accessed through SSH:
+### Stop
+
+```bash
+./02-azure-vm-tigervnc.sh stop
+```
+
+Connect through an SSH tunnel:
 
 ```bash
 ssh -L 5901:127.0.0.1:5901 USER@PUBLIC_IP
@@ -372,15 +517,11 @@ Then connect TigerVNC Viewer to:
 127.0.0.1:5901
 ```
 
+---
+
 ## 3. TigerVNC + 9Router
 
-Start:
-
-```bash
-./03-azure-vm-tigervnc-9router.sh start
-```
-
-Public ports:
+This version exposes:
 
 ```text
 22
@@ -395,11 +536,41 @@ Private ports:
 20128
 ```
 
+### Start
+
+```bash
+./03-azure-vm-tigervnc-9router.sh start
+```
+
+### Status
+
+```bash
+./03-azure-vm-tigervnc-9router.sh status
+```
+
+### Stop
+
+```bash
+./03-azure-vm-tigervnc-9router.sh stop
+```
+
 The recommended deployment is to publish 9Router through Nginx or Caddy while keeping port `20128` private.
+
+TigerVNC still uses an SSH tunnel:
+
+```bash
+ssh -L 5901:127.0.0.1:5901 USER@PUBLIC_IP
+```
+
+If needed, 9Router can also be accessed directly through an SSH tunnel:
+
+```bash
+ssh -L 20128:127.0.0.1:20128 USER@PUBLIC_IP
+```
 
 ---
 
-## Nginx Example for 9Router
+# Nginx Example for 9Router
 
 Install Nginx:
 
@@ -408,7 +579,7 @@ sudo apt update
 sudo apt install -y nginx
 ```
 
-Create the site configuration:
+Create a site configuration:
 
 ```bash
 sudo nano /etc/nginx/sites-available/9router
@@ -437,7 +608,17 @@ Enable the site:
 
 ```bash
 sudo ln -s /etc/nginx/sites-available/9router /etc/nginx/sites-enabled/9router
+```
+
+Test the Nginx configuration:
+
+```bash
 sudo nginx -t
+```
+
+Reload Nginx:
+
+```bash
 sudo systemctl reload nginx
 ```
 
@@ -453,7 +634,7 @@ Value: CURRENT_AZURE_PUBLIC_IP
 
 ---
 
-## HTTPS with Certbot
+# HTTPS with Certbot
 
 Install Certbot:
 
@@ -481,7 +662,7 @@ can proxy requests to:
 
 ---
 
-## NSG Rule Names
+# NSG Rule Names
 
 The scripts manage only the following NSG rule names:
 
@@ -495,7 +676,7 @@ They do not intentionally delete unrelated NSG rules.
 
 The SSH-only variants remove only the managed HTTP/HTTPS rules listed above.
 
-Inspect your current rules with:
+Inspect current NSG rules:
 
 ```bash
 az network nsg rule list \
@@ -506,7 +687,7 @@ az network nsg rule list \
 
 ---
 
-## SSH Security
+# SSH Security
 
 By default:
 
@@ -524,7 +705,7 @@ SSH_SOURCE="203.0.113.10/32"
 
 Do not expose TigerVNC port `5901` directly to the Internet.
 
-Do not expose 9Router port `20128` directly if an SSH tunnel or reverse proxy is available.
+Do not expose 9Router port `20128` directly when an SSH tunnel or reverse proxy is available.
 
 Recommended public ports:
 
@@ -544,11 +725,11 @@ Recommended public ports:
 
 ---
 
-## Public IPv4 Behavior
+# Public IPv4 Behavior
 
 The scripts intentionally delete the Standard Public IPv4 resource when the VM is stopped.
 
-For example:
+Example:
 
 ```text
 First start : 70.x.x.x
@@ -558,13 +739,13 @@ Next start  : 20.x.x.x
 
 Always use the Public IPv4 address printed by the script after starting the VM.
 
-### Domain Users
+## Domain Users
 
-If a domain points directly to the Azure Public IPv4 address, its DNS record can become outdated after the VM is restarted and receives a different IP.
+If a domain points directly to the Azure Public IPv4 address, its DNS record can become outdated after the VM receives a new IP.
 
 You must either:
 
-- update the DNS record after each IP change,
+- update the DNS record after every IP change,
 - automate DNS updates using your DNS provider's API, or
 - keep a fixed Azure Public IP resource instead of deleting it.
 
@@ -572,7 +753,7 @@ Keeping a Public IP resource allocated may continue to incur Azure charges.
 
 ---
 
-## Azure Cloud Shell Persistence
+# Azure Cloud Shell Persistence
 
 Azure Cloud Shell can use persistent or ephemeral storage.
 
@@ -584,9 +765,35 @@ Because this project is hosted on GitHub, it can be restored quickly:
 git clone https://github.com/AkbarPutraWiratama/Azure-VM-stopper-IPv4-Manager.git
 ```
 
+Then:
+
+```bash
+cd Azure-VM-stopper-IPv4-Manager
+chmod +x ssh-only/*.sh
+chmod +x web-80-443/*.sh
+```
+
 ---
 
-## Cost Notes
+# Updating the Local Repository
+
+If the repository was already cloned previously:
+
+```bash
+cd ~/Azure-VM-stopper-IPv4-Manager
+git pull
+```
+
+Then make sure the scripts remain executable:
+
+```bash
+chmod +x ssh-only/*.sh
+chmod +x web-80-443/*.sh
+```
+
+---
+
+# Cost Notes
 
 The `stop` action uses:
 
@@ -617,7 +824,144 @@ Azure Portal
 
 ---
 
-## License
+# Troubleshooting
+
+## `chmod: cannot access 'ssh-only/*.sh'`
+
+Make sure you are inside the cloned repository:
+
+```bash
+cd ~/Azure-VM-stopper-IPv4-Manager
+```
+
+Then run:
+
+```bash
+chmod +x ssh-only/*.sh
+chmod +x web-80-443/*.sh
+```
+
+## Check Script Syntax
+
+```bash
+bash -n ssh-only/01-azure-vm-barebones.sh
+bash -n ssh-only/02-azure-vm-tigervnc.sh
+bash -n ssh-only/03-azure-vm-tigervnc-9router.sh
+
+bash -n web-80-443/01-azure-vm-barebones.sh
+bash -n web-80-443/02-azure-vm-tigervnc.sh
+bash -n web-80-443/03-azure-vm-tigervnc-9router.sh
+```
+
+No output means the Bash syntax check passed.
+
+## Check VM Status Directly
+
+```bash
+az vm get-instance-view \
+  -g YOUR_RESOURCE_GROUP \
+  -n YOUR_VM_NAME \
+  --query "instanceView.statuses[?starts_with(code,'PowerState/')].displayStatus" \
+  -o tsv
+```
+
+## Check Public IPv4
+
+```bash
+az network public-ip list \
+  -g YOUR_RESOURCE_GROUP \
+  -o table
+```
+
+## Check TigerVNC
+
+Inside the VM:
+
+```bash
+systemctl status tigervnc
+```
+
+## Check 9Router
+
+Inside the VM:
+
+```bash
+systemctl status 9router
+```
+
+Health check:
+
+```bash
+curl http://127.0.0.1:20128/api/health
+```
+
+---
+
+# Quick Reference
+
+## SSH-only Barebones
+
+```bash
+cd ~/Azure-VM-stopper-IPv4-Manager/ssh-only
+
+./01-azure-vm-barebones.sh start
+./01-azure-vm-barebones.sh status
+./01-azure-vm-barebones.sh stop
+```
+
+## SSH-only TigerVNC
+
+```bash
+cd ~/Azure-VM-stopper-IPv4-Manager/ssh-only
+
+./02-azure-vm-tigervnc.sh start
+./02-azure-vm-tigervnc.sh status
+./02-azure-vm-tigervnc.sh stop
+```
+
+## SSH-only TigerVNC + 9Router
+
+```bash
+cd ~/Azure-VM-stopper-IPv4-Manager/ssh-only
+
+./03-azure-vm-tigervnc-9router.sh start
+./03-azure-vm-tigervnc-9router.sh status
+./03-azure-vm-tigervnc-9router.sh stop
+```
+
+## Web Barebones
+
+```bash
+cd ~/Azure-VM-stopper-IPv4-Manager/web-80-443
+
+./01-azure-vm-barebones.sh start
+./01-azure-vm-barebones.sh status
+./01-azure-vm-barebones.sh stop
+```
+
+## Web TigerVNC
+
+```bash
+cd ~/Azure-VM-stopper-IPv4-Manager/web-80-443
+
+./02-azure-vm-tigervnc.sh start
+./02-azure-vm-tigervnc.sh status
+./02-azure-vm-tigervnc.sh stop
+```
+
+## Web TigerVNC + 9Router
+
+```bash
+cd ~/Azure-VM-stopper-IPv4-Manager/web-80-443
+
+./03-azure-vm-tigervnc-9router.sh start
+./03-azure-vm-tigervnc-9router.sh status
+./03-azure-vm-tigervnc-9router.sh stop
+```
+
+---
+
+# License
 
 This project is licensed under the [MIT License](LICENSE).
 
